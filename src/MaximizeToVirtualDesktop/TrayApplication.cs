@@ -194,7 +194,7 @@ internal sealed class TrayApplication : Form
     {
         try
         {
-            if (!userInitiated) await Task.Delay(3000);
+            if (!userInitiated) await Task.Delay(5000);
 
             var updateFound = await Updater.CheckForUpdatesAsync();
 
@@ -220,7 +220,7 @@ internal sealed class TrayApplication : Form
                 {
                     await Updater.InstallUpdateAsync(asset);
                 }
-                else
+                else if (userInitiated)
                 {
                     MessageBox.Show("Failed to download the update.", "Update Error",
                         MessageBoxButtons.OK, MessageBoxIcon.Error);
