@@ -13,6 +13,8 @@ When triggered, the foreground window is moved to a brand-new virtual desktop an
 
 The app runs in the system tray. Right-click the tray icon for options:
 - **Restore All** — brings all windows back and removes temp desktops
+- **How to Use** — shows usage instructions
+- **Check for Updates** — checks for new releases on GitHub
 - **Exit** — restores all windows, then exits
 
 ## How It Works
@@ -25,7 +27,7 @@ The app runs in the system tray. Right-click the tray icon for options:
 ## Requirements
 
 - **Windows 11 24H2** or later
-- .NET 8 Runtime (or use the self-contained publish)
+- Self-contained — no .NET installation required
 
 ### Shift+Click Compatibility
 
@@ -79,14 +81,41 @@ src/MaximizeToVirtualDesktop/
 
 ## Known Limitations
 
-- **Windows version dependency** — the undocumented `IVirtualDesktopManagerInternal` COM interface changes GUIDs with major Windows updates (~2-3x/year). When this happens, update `Interop/VirtualDesktopCom.cs` from [MScholtes' latest](https://github.com/MScholtes/VirtualDesktop).
 - **Elevated windows** — cannot move windows running as Administrator from a non-elevated instance.
 - **App crash** — if the app crashes, temporary desktops may remain. They're named after the process for easy identification.
 
-## Prior Art
+## The Virtual Desktop GUID Problem
 
-- [Peach](https://peachapp.net) — MS Store app with the same hotkey UX
-- [MScholtes/VirtualDesktop](https://github.com/MScholtes/VirtualDesktop) — the COM interface source we vendor
+Microsoft's Virtual Desktop feature has a proper, documented COM interface — `IVirtualDesktopManager` — but it can only tell you *which* desktop a window is on and move a window *you own* between desktops. The actually useful operations — creating desktops, switching desktops, moving *any* window, naming desktops — all live behind **undocumented COM interfaces** like `IVirtualDesktopManagerInternal` and `IVirtualDesktop`.
+
+The problem? **Microsoft changes the interface GUIDs with nearly every major Windows update.** Not the methods. Not the signatures. Just the GUIDs. This means every app that uses virtual desktop automation — this one, [Peach](https://peachapp.net), [FancyWM](https://github.com/FancyWM/fancywm), and dozens of others — breaks silently 2-3 times a year and has to scramble to update hardcoded GUIDs.
+
+This is the single biggest fragility in this app. When it breaks, the app shows an error dialog on startup saying "Failed to initialize Virtual Desktop COM interface." The fix is straightforward but shouldn't be necessary:
+
+### How to update the GUIDs
+
+1. Check [MScholtes/VirtualDesktop](https://github.com/MScholtes/VirtualDesktop) — Markus Scholtes maintains per-build interface files (e.g., `VirtualDesktop11-24H2.cs`) and typically updates within days of a new Windows build. Huge thanks to him for doing this thankless work for the entire community.
+2. Copy the updated GUIDs into `src/MaximizeToVirtualDesktop/Interop/VirtualDesktopCom.cs`
+3. The fragile GUIDs are on these interfaces:
+
+| Interface | What it does | Stable? |
+|-----------|-------------|---------|
+| `IVirtualDesktopManager` | Check/move owned windows | ✅ Documented, stable since Win10 |
+| `IServiceProvider10` | Standard COM service lookup | ✅ Stable |
+| `IObjectArray` | Standard COM collection | ✅ Stable |
+| `IVirtualDesktop` | Desktop identity, name, wallpaper | ⚠️ **Breaks with Windows updates** |
+| `IVirtualDesktopManagerInternal` | Create, switch, move, remove desktops | ⚠️ **Breaks with Windows updates** |
+| `IApplicationView` | Window view for cross-process moves | ⚠️ **Breaks with Windows updates** |
+| `IApplicationViewCollection` | Get views by window handle | ⚠️ **Breaks with Windows updates** |
+
+### Dear Microsoft
+
+Please stabilize the Virtual Desktop COM interfaces or provide a proper public API. Every third-party virtual desktop tool in the ecosystem depends on reverse-engineered GUIDs that break with every update. A stable API for creating, switching, naming, and moving windows between virtual desktops would eliminate an entire class of fragility. [PowerToys has asked for this too](https://github.com/microsoft/PowerToys/issues/13993).
+
+## Prior Art & Credits
+
+- **[Markus Scholtes (MScholtes/VirtualDesktop)](https://github.com/MScholtes/VirtualDesktop)** — the COM interface definitions we vendor are from his project (MIT license). He does the hard work of reverse-engineering and publishing updated GUIDs for every Windows build. This app and many others wouldn't be possible without his work.
+- [Peach](https://peachapp.net) — MS Store app with similar hotkey UX
 - PowerToys feature requests [#13993](https://github.com/microsoft/PowerToys/issues/13993), [#21597](https://github.com/microsoft/PowerToys/issues/21597)
 
 ## License
