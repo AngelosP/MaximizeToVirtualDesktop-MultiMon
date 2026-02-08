@@ -21,7 +21,10 @@ static class Program
 
         try
         {
-            Trace.Listeners.Add(new DefaultTraceListener());
+            var logPath = Path.Combine(AppContext.BaseDirectory, "debug.log");
+            Trace.Listeners.Add(new TextWriterTraceListener(logPath) { TraceOutputOptions = TraceOptions.DateTime });
+            Trace.AutoFlush = true;
+            Trace.WriteLine("Program: Starting...");
 
             ApplicationConfiguration.Initialize();
             Application.Run(new TrayApplication());

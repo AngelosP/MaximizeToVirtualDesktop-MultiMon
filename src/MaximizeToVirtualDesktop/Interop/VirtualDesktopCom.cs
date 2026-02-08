@@ -54,10 +54,8 @@ internal interface IVirtualDesktop
 {
     bool IsViewVisible(IApplicationView view);
     Guid GetId();
-    [return: MarshalAs(UnmanagedType.HString)]
-    string GetName();
-    [return: MarshalAs(UnmanagedType.HString)]
-    string GetWallpaperPath();
+    IntPtr GetName();
+    IntPtr GetWallpaperPath();
     bool IsRemote();
 }
 
@@ -81,22 +79,30 @@ internal interface IVirtualDesktopManagerInternal
     void RemoveDesktop(IVirtualDesktop desktop, IVirtualDesktop fallback);
     IVirtualDesktop FindDesktop(ref Guid desktopId);
     void GetDesktopSwitchIncludeExcludeViews(IVirtualDesktop desktop, out IObjectArray unknown1, out IObjectArray unknown2);
-    void SetDesktopName(IVirtualDesktop desktop, [MarshalAs(UnmanagedType.HString)] string name);
-    void SetDesktopWallpaper(IVirtualDesktop desktop, [MarshalAs(UnmanagedType.HString)] string path);
-    void UpdateWallpaperPathForAllDesktops([MarshalAs(UnmanagedType.HString)] string path);
+    void SetDesktopName(IVirtualDesktop desktop, IntPtr nameHString);
+    void SetDesktopWallpaper(IVirtualDesktop desktop, IntPtr pathHString);
+    void UpdateWallpaperPathForAllDesktops(IntPtr pathHString);
     void CopyDesktopState(IApplicationView pView0, IApplicationView pView1);
-    void CreateRemoteDesktop([MarshalAs(UnmanagedType.HString)] string path, out IVirtualDesktop desktop);
+    void CreateRemoteDesktop(IntPtr pathHString, out IVirtualDesktop desktop);
     void SwitchRemoteDesktop(IVirtualDesktop desktop, IntPtr switchtype);
     void SwitchDesktopWithAnimation(IVirtualDesktop desktop);
     void GetLastActiveDesktop(out IVirtualDesktop desktop);
     void WaitForAnimationToComplete();
 }
 
+// In .NET 8, InterfaceIsIInspectable is not supported. We use InterfaceIsIUnknown
+// and add 3 dummy methods for the IInspectable vtable slots (GetIids, GetRuntimeClassName, GetTrustLevel).
 [ComImport]
-[InterfaceType(ComInterfaceType.InterfaceIsIInspectable)]
+[InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
 [Guid("372E1D3B-38D3-42E4-A15B-8AB2B178F513")]
 internal interface IApplicationView
 {
+    // IInspectable methods (vtable padding — we never call these)
+    int GetIids(out int iidCount, out IntPtr iids);
+    int GetRuntimeClassName(out IntPtr className);
+    int GetTrustLevel(out int trustLevel);
+
+    // IApplicationView methods
     int SetFocus();
     int SwitchTo();
     int TryInvokeBack(IntPtr callback);

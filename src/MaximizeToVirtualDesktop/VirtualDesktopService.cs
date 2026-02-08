@@ -237,15 +237,23 @@ internal sealed class VirtualDesktopService : IDisposable
 
     public bool SetDesktopName(IVirtualDesktop desktop, string name)
     {
+        IntPtr hstring = IntPtr.Zero;
         try
         {
-            _managerInternal!.SetDesktopName(desktop, name);
+            int hr = NativeMethods.WindowsCreateString(name, name.Length, out hstring);
+            if (hr != 0) return false;
+
+            _managerInternal!.SetDesktopName(desktop, hstring);
             return true;
         }
         catch (Exception ex)
         {
             Trace.WriteLine($"VirtualDesktopService: SetDesktopName failed: {ex.Message}");
             return false;
+        }
+        finally
+        {
+            if (hstring != IntPtr.Zero) NativeMethods.WindowsDeleteString(hstring);
         }
     }
 
