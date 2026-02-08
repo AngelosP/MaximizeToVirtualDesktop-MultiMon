@@ -63,6 +63,42 @@ internal sealed class TrayApplication : Form
     {
         base.OnHandleCreated(e);
 
+        // Check Windows version before attempting COM init
+        var buildNumber = GetWindowsBuildNumber();
+        Trace.WriteLine($"TrayApplication: Windows build {buildNumber}");
+
+        if (buildNumber < 22000)
+        {
+            // Not Windows 11 at all
+            MessageBox.Show(
+                "MaximizeToVirtualDesktop requires Windows 11.\n\n" +
+                $"Your system is running Windows build {buildNumber}.\n" +
+                "Virtual Desktop APIs needed by this app are not available on Windows 10.",
+                "MaximizeToVirtualDesktop — Unsupported Windows Version",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+            Application.Exit();
+            return;
+        }
+
+        if (buildNumber < 26100)
+        {
+            // Windows 11 but older than 24H2
+            var result = MessageBox.Show(
+                "MaximizeToVirtualDesktop is built for Windows 11 24H2 (build 26100+).\n\n" +
+                $"Your system is running build {buildNumber}.\n\n" +
+                "The app may not work correctly on older Windows 11 versions because\n" +
+                "Microsoft changes the internal Virtual Desktop APIs between releases.\n\n" +
+                "Would you like to try anyway?",
+                "MaximizeToVirtualDesktop — Older Windows 11 Version",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+            if (result != DialogResult.Yes)
+            {
+                Application.Exit();
+                return;
+            }
+        }
+
         // Initialize COM
         _comInitialized = _vds.Initialize();
         if (!_comInitialized)
@@ -325,6 +361,20 @@ internal sealed class TrayApplication : Form
             "Use \"Restore All\" in the tray menu to bring everything back.",
             "How to Use — Maximize to Virtual Desktop",
             MessageBoxButtons.OK, MessageBoxIcon.Information);
+    }
+
+    private static int GetWindowsBuildNumber()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows NT\CurrentVersion");
+            var build = key?.GetValue("CurrentBuildNumber")?.ToString();
+            return int.TryParse(build, out var num) ? num : 0;
+        }
+        catch
+        {
+            return 0;
+        }
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
